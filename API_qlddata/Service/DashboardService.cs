@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Data;
 using System.Linq;
-using API_qlddata.Context;
 using API_qlddata.Entity.request;
 using API_qlddata.Entity.response;
 using DTO_PremierDucts;
@@ -15,12 +14,11 @@ namespace API_qlddata.Service
 
     public class DashboardService
     {
-
-       
-        DBConnection DBConnection;
+		static DBConnection dbCon;
         public DashboardService()
-        {          
-            DBConnection = DBConnection.Instance(Startup.StaticConfig.GetConnectionString("ConnectionForDatabase"));
+        {
+			dbCon = DBConnection.Instance(Startup.StaticConfig.GetConnectionString("ConnectionForDatabase"));
+
         }
 
         public ResponseData getAllQLDdataByListJobno(List<string> jobNo)
@@ -31,22 +29,22 @@ namespace API_qlddata.Service
             DataTable dt1 = new DataTable();
             var listJobNoRequest = string.Join(",", jobNo.Select(x => "'" + x + "'").ToArray());
 
-            //string queryForDispatch = "select * from qlddata.dispatch_detail where jobno in  (" + joinedPenalty + ");";
+            //string queryForDispatch = "select * from dispatch_detail where jobno in  (" + joinedPenalty + ");";
 
-            string queryForDispatch = "SELECT t1.jobno, t1.pathId,t2.pathValue, t1.metalarea, t1.insulationarea, t1.cuttype, t1.stationName FROM qlddata.dispatch_detail as t1 left JOIN qlddata.fileinfo as t2 ON t1.pathId = t2.pathId where jobno in (" + listJobNoRequest + ") ;";
-            string queryForFactory = "SELECT jobno, pathId, metalarea, insulationarea, cuttype, stationName from qlddata.factory_fit where jobno in  (" + listJobNoRequest + ")";
+            string queryForDispatch = "SELECT t1.jobno, t1.pathId,t2.pathValue, t1.metalarea, t1.insulationarea, t1.cuttype, t1.stationName FROM dispatch_detail as t1 left JOIN fileinfo as t2 ON t1.pathId = t2.pathId where jobno in (" + listJobNoRequest + ") ;";
+            string queryForFactory = "SELECT jobno, pathId, metalarea, insulationarea, cuttype, stationName from factory_fit where jobno in  (" + listJobNoRequest + ")";
 
 
-            if (DBConnection.IsConnect())
+            if (dbCon.IsConnect())
             {
                 try
                 {
 
-                    MySqlDataAdapter myDataAdapter = new MySqlDataAdapter(queryForDispatch, DBConnection.Connection);
+                    MySqlDataAdapter myDataAdapter = new MySqlDataAdapter(queryForDispatch, dbCon.Connection);
 
                     myDataAdapter.Fill(dt);
 
-                    myDataAdapter = new MySqlDataAdapter(queryForFactory, DBConnection.Connection);
+                    myDataAdapter = new MySqlDataAdapter(queryForFactory, dbCon.Connection);
                     myDataAdapter.Fill(dt1);
 
                     dt.Merge(dt1);
@@ -71,7 +69,7 @@ namespace API_qlddata.Service
                 }
                 finally
                 {
-                    DBConnection.Close();
+                    dbCon.Close();
                 }
 
 
@@ -90,19 +88,19 @@ namespace API_qlddata.Service
             DataTable dt1 = new DataTable();
             var joinedPenalty = string.Join(",", jobnoes.Select(x => "'" + x + "'").ToArray());
 
-            string queryForDispatch = "SELECT t1.jobno, t1.pathId,t2.pathValue, sum(metalarea) as metal_m2, sum(insulationarea) as insu_m2 FROM qlddata.dispatch_detail as t1 left JOIN qlddata.fileinfo as t2 ON t1.pathId = t2.pathId where jobno in (" + joinedPenalty + ") group by jobno, pathId;";
-            string queryForFactory = "SELECT jobno,sum(metalarea) as metal_m2, sum(insulationarea) as insu_m2 FROM qlddata.factory_fit  where jobno in (" + joinedPenalty + ") group by jobno;";
+            string queryForDispatch = "SELECT t1.jobno, t1.pathId,t2.pathValue, sum(metalarea) as metal_m2, sum(insulationarea) as insu_m2 FROM dispatch_detail as t1 left JOIN fileinfo as t2 ON t1.pathId = t2.pathId where jobno in (" + joinedPenalty + ") group by jobno, pathId;";
+            string queryForFactory = "SELECT jobno,sum(metalarea) as metal_m2, sum(insulationarea) as insu_m2 FROM factory_fit  where jobno in (" + joinedPenalty + ") group by jobno;";
 
-            if (DBConnection.IsConnect())
+            if (dbCon.IsConnect())
             {
 
                 try
                 {
-                    MySqlDataAdapter myDataAdapter = new MySqlDataAdapter(queryForDispatch, DBConnection.Connection);
+                    MySqlDataAdapter myDataAdapter = new MySqlDataAdapter(queryForDispatch, dbCon.Connection);
 
                     myDataAdapter.Fill(dt);
 
-                    myDataAdapter = new MySqlDataAdapter(queryForFactory, DBConnection.Connection);
+                    myDataAdapter = new MySqlDataAdapter(queryForFactory, dbCon.Connection);
                     myDataAdapter.Fill(dt1);
 
                     dt.Merge(dt1);
@@ -146,7 +144,7 @@ namespace API_qlddata.Service
 
                 finally
                 {
-                    DBConnection.Close(); // return connection to the pool
+                    dbCon.Close(); // return connection to the pool
                 }
             }
             return responseData;
@@ -169,31 +167,31 @@ namespace API_qlddata.Service
                   || resquest.station.Equals("Specialty") || resquest.station.Equals("Knock - up")
                   || resquest.station.Equals("Seal Tape") || resquest.station.Equals("Plasma 2") || resquest.station.Equals("Plasma 3"))
             {
-                queryForDispatch = "SELECT t1.jobno, t1.pathId,t2.pathValue,sum(metalarea) as metal_m2, sum(insulationarea) as insu_m2 FROM qlddata.dispatch_detail as t1 left JOIN qlddata.fileinfo as t2 ON t1.pathId = t2.pathId where jobno in (" + joinedPenalty + ") and cuttype='MachineCut' group by jobno,pathId;";
-                queryForFactory = "SELECT jobno,sum(metalarea) as metal_m2,sum(insulationarea) as insu_m2 FROM qlddata.factory_fit  where jobno in (" + joinedPenalty + ") and cuttype='MachineCut' group by jobno;";
+                queryForDispatch = "SELECT t1.jobno, t1.pathId,t2.pathValue,sum(metalarea) as metal_m2, sum(insulationarea) as insu_m2 FROM dispatch_detail as t1 left JOIN fileinfo as t2 ON t1.pathId = t2.pathId where jobno in (" + joinedPenalty + ") and cuttype='MachineCut' group by jobno,pathId;";
+                queryForFactory = "SELECT jobno,sum(metalarea) as metal_m2,sum(insulationarea) as insu_m2 FROM factory_fit  where jobno in (" + joinedPenalty + ") and cuttype='MachineCut' group by jobno;";
 
 
             }
             else if (resquest.station.Equals("Insulation Cutting") || resquest.station.Equals("Insulation Pinning") || resquest.station.Equals("Insulation Sorting"))
             {
 
-                queryForDispatch = "SELECT t1.jobno, t1.pathId,t2.pathValue,sum(metalarea) as metal_m2,sum(insulationarea) as insu_m2 FROM qlddata.dispatch_detail as t1 left JOIN qlddata.fileinfo as t2 ON t1.pathId = t2.pathId where jobno in (" + joinedPenalty + ") and insulationarea >0 group by jobno,pathId;";
-                queryForFactory = "SELECT jobno,sum(metalarea) as metal_m2,sum(insulationarea) as insu_m2 FROM qlddata.factory_fit  where jobno in (" + joinedPenalty + ") and insulationarea >0 group by jobno;";
+                queryForDispatch = "SELECT t1.jobno, t1.pathId,t2.pathValue,sum(metalarea) as metal_m2,sum(insulationarea) as insu_m2 FROM dispatch_detail as t1 left JOIN fileinfo as t2 ON t1.pathId = t2.pathId where jobno in (" + joinedPenalty + ") and insulationarea >0 group by jobno,pathId;";
+                queryForFactory = "SELECT jobno,sum(metalarea) as metal_m2,sum(insulationarea) as insu_m2 FROM factory_fit  where jobno in (" + joinedPenalty + ") and insulationarea >0 group by jobno;";
 
             }
 
             else if (resquest.station.Equals("Wrapping") || resquest.station.Equals("Packing") || resquest.station.Equals("Decoil Sheet"))
             {
-                queryForDispatch = "SELECT t1.jobno, t1.pathId,t2.pathValue,sum(metalarea) as metal_m2,sum(insulationarea) as insu_m2 FROM qlddata.dispatch_detail as t1 left JOIN qlddata.fileinfo as t2 ON t1.pathId = t2.pathId where jobno in (" + joinedPenalty + ") group by jobno,pathId;";
-                queryForFactory = "SELECT jobno,sum(metalarea) as metal_m2,sum(insulationarea) as insu_m2 FROM qlddata.factory_fit  where jobno in (" + joinedPenalty + ") group by jobno;";
+                queryForDispatch = "SELECT t1.jobno, t1.pathId,t2.pathValue,sum(metalarea) as metal_m2,sum(insulationarea) as insu_m2 FROM dispatch_detail as t1 left JOIN fileinfo as t2 ON t1.pathId = t2.pathId where jobno in (" + joinedPenalty + ") group by jobno,pathId;";
+                queryForFactory = "SELECT jobno,sum(metalarea) as metal_m2,sum(insulationarea) as insu_m2 FROM factory_fit  where jobno in (" + joinedPenalty + ") group by jobno;";
 
             }
             else if (resquest.station.Equals("Coil Straight"))
             {
 
-                queryForDispatch = "SELECT t1.jobno, t1.pathId,t2.pathValue,sum(metalarea) as metal_m2,sum(insulationarea) as insu_m2 FROM qlddata.dispatch_detail as t1 left JOIN qlddata.fileinfo as t2 ON t1.pathId = t2.pathId where t1.jobno in (" + joinedPenalty + ") and t1.cuttype='DecoiledStraight' group by jobno,pathId;";
+                queryForDispatch = "SELECT t1.jobno, t1.pathId,t2.pathValue,sum(metalarea) as metal_m2,sum(insulationarea) as insu_m2 FROM dispatch_detail as t1 left JOIN fileinfo as t2 ON t1.pathId = t2.pathId where t1.jobno in (" + joinedPenalty + ") and t1.cuttype='DecoiledStraight' group by jobno,pathId;";
 
-                queryForFactory = "SELECT jobno,sum(metalarea) as metal_m2,sum(insulationarea) as insu_m2 FROM qlddata.factory_fit  where jobno in (" + joinedPenalty + ") and cuttype='DecoiledStraight' group by jobno;";
+                queryForFactory = "SELECT jobno,sum(metalarea) as metal_m2,sum(insulationarea) as insu_m2 FROM factory_fit  where jobno in (" + joinedPenalty + ") and cuttype='DecoiledStraight' group by jobno;";
 
             }
 
@@ -203,18 +201,14 @@ namespace API_qlddata.Service
             //const string DB_CONN_STR = "server=127.0.0.1;user=phatAdmin;password=phatTest@123;port=33061;database=qlddata;";
 
             //MySqlConnection cn = new MySqlConnection(configuration);
-            if (DBConnection.IsConnect())
+            if (dbCon.IsConnect())
             {
                 try
                 {
-
-                  
-
-                    MySqlDataAdapter myDataAdapter = new MySqlDataAdapter(queryForDispatch, DBConnection.Connection);
-
+                    MySqlDataAdapter myDataAdapter = new MySqlDataAdapter(queryForDispatch, dbCon.Connection);
                     myDataAdapter.Fill(dt);
 
-                    myDataAdapter = new MySqlDataAdapter(queryForFactory, DBConnection.Connection);
+                    myDataAdapter = new MySqlDataAdapter(queryForFactory, dbCon.Connection);
                     myDataAdapter.Fill(dt1);
 
                     dt.Merge(dt1);
@@ -227,7 +221,7 @@ namespace API_qlddata.Service
                 }
                 finally
                 {
-                    DBConnection.Close(); // return connection to the pool
+                    dbCon.Close(); // return connection to the pool
                 }
             }
 
@@ -352,17 +346,5 @@ namespace API_qlddata.Service
 
         }
 
-
-        //public string getPathIdForJobNo(string jobNo)
-        //{
-        //    var listQldData = _qLDdatacontext.DispatchDetails.Where(i => i.jobno.Equals(jobNo)).ToList();
-        //    if (listQldData.Count > 0)
-        //    {
-        //        string[] fileinfo = _qLDdatacontext.FileInfos.Where(i => i.pathId == listQldData.First().pathId).Select(p => p.pathValue).First().ToString().Split("/");
-        //        fileinfo = fileinfo.Where((item, index) => index != 0 && index != fileinfo.Count() - 1).ToArray();
-        //        return string.Join("/", fileinfo);
-        //    }
-        //    return "";
-        //}
     }
 }

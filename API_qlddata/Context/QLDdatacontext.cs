@@ -1,11 +1,9 @@
-﻿using System;
-using API_premierductsqld.Entities;
-using API_qlddata.Entity.response;
+﻿using DTO_PremierDucts.Entities;
 using Microsoft.EntityFrameworkCore;
 
 namespace API_qlddata.Context
 {
-    public partial class QLDdatacontext : DbContext
+	public partial class QLDdatacontext : DbContext
     {
         public QLDdatacontext()
         {

@@ -1,27 +1,40 @@
-﻿using System;
+﻿using System.Collections.Generic;
 using API_premierductsqld.Service;
-using API_qlddata.Context;
+using API_qlddata.Entity.request;
+using DTO_PremierDucts.EntityResponse;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Options;
 
 namespace API_qlddata.Controllers
 {
     [ApiController]
-    [Route("report")]
-    public class ReportController : ControllerBase
+    [Route("reportQLD")]
+    public class ReportQLDController : ControllerBase
     {
-        private ReportStationService reportStationService;
-        public ReportController(QLDdatacontext qLDdatacontext)
+        private ReportService reportService;
+        public ReportQLDController()
         {
 
-            reportStationService = new ReportStationService(qLDdatacontext);
+            reportService = new ReportService();
         }
 
         [HttpGet("jobno")]
         public void reportForEachJobNo()
         {
-            reportStationService.reportForEachJobNo();
+            reportService.reportForEachJobNo();
+
+        }
+
+        [HttpPost("dispatch/info/box")]
+        public List<DispatchInforResponse> getDispatchInforByListBoxes(List<BoxeseRequest> box)
+        {
+            return reportService.getDispatchInforByListBoxes(box);
+
+        }
+
+        [HttpPost("dispatch/info/jobno")]
+        public List<DispatchInforResponse> getDispatchInforByListJobno(List<string> jobno)
+        {
+            return reportService.getDispatchInforByListJobno(jobno);
 
         }
     }

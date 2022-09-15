@@ -1,28 +1,22 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Configuration;
 using System.Diagnostics;
-using System.Threading.Tasks;
-using API_premierductsqld.Entities;
-using API_qlddata;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
+using DTO_PremierDucts.Entities;
 using Newtonsoft.Json;
 
 namespace API_premierductsqld.Service
 {
-    public class UserService
+	public class UserService
     {
         static System.Net.Http.HttpClient client = new System.Net.Http.HttpClient();
 
-        public static List<StationDTO> GetStations(string urlFromBase)
+        public static List<Station> GetStations(string urlFromBase)
         {
 
             try
             {
-          
 
-                string url = urlFromBase + "user/station";
+                string url = urlFromBase + "/user/station";
                 //Sends request to retrieve data from the web service for the specified Uri
                 var response = client.GetAsync(url).Result;
 
@@ -30,7 +24,7 @@ namespace API_premierductsqld.Service
                 {
 
                     var content = response.Content.ReadAsStringAsync(); //Returns the response as JSON string
-                    List<StationDTO> stations = JsonConvert.DeserializeObject<List<StationDTO>>(content.Result); //Converts JSON string to dynamic
+                    List<Station> stations = JsonConvert.DeserializeObject<List<Station>>(content.Result); //Converts JSON string to dynamic
                     return stations;
                 }
                

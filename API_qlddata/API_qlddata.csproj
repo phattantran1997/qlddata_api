@@ -17,6 +17,7 @@
     <None Remove="Swashbuckle.AspNetCore.Swagger" />
     <None Remove="Microsoft.AspNetCore.Http" />
     <None Remove="Properties\PublishProfiles\" />
+    <None Remove="Global\" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Context\" />
@@ -24,6 +25,7 @@
     <Folder Include="Service\" />
     <Folder Include="Controllers\" />
     <Folder Include="Properties\PublishProfiles\" />
+    <Folder Include="Global\" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="3.1.4" />

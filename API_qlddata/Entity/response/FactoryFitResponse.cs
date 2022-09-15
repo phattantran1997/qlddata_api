@@ -1,9 +1,8 @@
-﻿using System;
-using API_premierductsqld.Entities;
+﻿using DTO_PremierDucts.Entities;
 
 namespace API_qlddata.Entity.response
 {
-    public class FactoryFitResponse : FactoryFit
+	public class FactoryFitResponse : FactoryFit
     {
         public FactoryFitResponse()
         {

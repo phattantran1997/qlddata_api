@@ -6,64 +6,39 @@ using System.IO;
 using System.Linq;
 using System.Net.Mail;
 using API_premierductsqld.Entities;
-using API_premierductsqld.Entities.response;
+using API_qlddata;
 using API_qlddata.Context;
+using API_qlddata.Entity.request;
+using API_qlddata.Global;
+using DTO_PremierDucts.DBClient;
+using DTO_PremierDucts.Entities;
+using DTO_PremierDucts.EntityResponse;
 using Microsoft.Extensions.Configuration;
+using MySql.Data.MySqlClient;
 
 namespace API_premierductsqld.Service
 {
-    public class ReportStationService
+    public class ReportService
     {
 
         public readonly JobTimingService jobTimingService;
-
+        static DBConnection dbCon;
         public List<JobTimingResponse> jobTimingsListGroupBy = new List<JobTimingResponse>();
         public List<DispatchDetail> dispatchDetails = new List<DispatchDetail>();
         public List<FactoryFit> factoryFits = new List<FactoryFit>();
-
         string current = DateTime.Now.ToString("d/M/yyyy");
-        //string current = "29/3/2022";
-
-        private List<StationDTO> stations = new List<StationDTO>();
-        IConfiguration configuration = null;
-
-       
-
+        private List<Station> stations = new List<Station>();
         public readonly QLDdatacontext qLDDataContext;
         public double total_sum_nonprod_time = 0;
         public double total_sum_prod_time = 0;
         public double total_total_working_time = 0;
-        public ReportStationService( QLDdatacontext qLDDataContext)
+        public ReportService()
         {
-
-            this.qLDDataContext = qLDDataContext;
-
-            IConfigurationBuilder configurationBuilder = new ConfigurationBuilder();
-            configurationBuilder.AddJsonFile("appsettings.json");
-            configuration = configurationBuilder.Build();
-          
-            //get all station 
-            stations = UserService.GetStations(configuration.GetSection("URLForPremierAPI").Value).Where(item=>item.stationStatus=="active").ToList();
-
-            //group all jobtiming in today
-            jobTimingsListGroupBy = JobTimingService.getAllDataWithoutStation(configuration.GetSection("URLForPremierAPI").Value, current);
-
-            //get all dispatch detail
-            dispatchDetails = qLDDataContext.DispatchDetails.ToList();
-
-
-            //get all factory fit
-            factoryFits = qLDDataContext.FactoryFits.ToList();
-
-          
-     
-
+            dbCon = DBConnection.Instance(Startup.StaticConfig.GetConnectionString("ConnectionForDatabase"));
         }
-
 
         public void ToCSV(DataTable dtDataTable)
         {
-
 
             StreamWriter sw = new StreamWriter("reportjobno.csv", false);
             //headers    
@@ -151,14 +126,12 @@ namespace API_premierductsqld.Service
             dataTable.Columns.Add("Quantity", typeof(string));
 
             //create column.
-            foreach(StationDTO station in stations)
+            foreach(Station station in stations)
             {
                 if (!dataTable.Columns.Contains(station.stationName))
                 {
                     dataTable.Columns.Add(station.stationName, typeof(string));
-
                 }
-              
             }
 
             foreach(JobTimingResponse jobTiming in jobTimingsListGroupBy)
@@ -167,8 +140,8 @@ namespace API_premierductsqld.Service
                 var item_dispatchDetail = dispatchDetails.Where(item => item.jobno == jobTiming.jobno).ToList();
                 var item_factory_fit = factoryFits.Where(item => item.jobno == jobTiming.jobno).ToList();
 
-                var metalaream2 = item_dispatchDetail.Sum(item => item.metalarea * item.qty) + item_factory_fit.Sum(item => item.metalarea * item.qty);
-                var insuArea = item_dispatchDetail.Sum(item => item.insulationarea * item.qty) + item_factory_fit.Sum(item => item.insulationarea * item.qty);
+                var metalaream2 = item_dispatchDetail.Sum(item => Convert.ToDouble( item.metalarea) * item.qty) + item_factory_fit.Sum(item => item.metalarea * item.qty);
+                var insuArea = item_dispatchDetail.Sum(item => Convert.ToDouble(item.insulationarea) * item.qty) + item_factory_fit.Sum(item => item.insulationarea * item.qty);
                 var qty = item_dispatchDetail.Sum(item => item.qty) + item_factory_fit.Sum(item => item.qty);
 
                 //create new ROW
@@ -181,7 +154,7 @@ namespace API_premierductsqld.Service
                 row["Item Fit Area (mm2)"] = insuArea;
                 row["Quantity"] = qty;
                 //get All Data from jobno
-                List<ResultOfGetAllDataFromJobNo> rsult = JobTimingService.getAllDataByJobNo(configuration.GetSection("URLForPremierAPI").Value, jobTiming.jobno);
+                List<ResultOfGetAllDataFromJobNo> rsult = JobTimingService.getAllDataByJobNo(Startup.StaticConfig.GetSection("URLForPremierAPI").Value, jobTiming.jobno);
 
                 var groupbydate = rsult.GroupBy(i => i.jobday).Select(i=>i.Key).ToList();
 
@@ -189,19 +162,16 @@ namespace API_premierductsqld.Service
                 //get all Job from date- > to date.
                 foreach(string date in groupbydate)
                 {
-                    var temp = JobTimingService.getAllDataWithStation(configuration.GetSection("URLForPremierAPI").Value, date);
+                    var temp = JobTimingService.getAllDataWithStation(Startup.StaticConfig.GetSection("URLForPremierAPI").Value, date);
                     for (var i = 0; i < temp.Count; i++)
                     {
-                        string duration = "0";
                         if (i == temp.Count - 1)
                         {
                             break;
-
                         }
                         if (temp[i + 1] != null)
                         {
                             temp[i].duration = calculateDuration(temp[i].jobtime, temp[i + 1].jobtime);
-
                         }
                     }
 
@@ -226,6 +196,116 @@ namespace API_premierductsqld.Service
             ToCSV(dataTable);
             SendEmail();
         }
+        public List<DispatchInforResponse> getDispatchInforByListBoxes(List<BoxeseRequest> box)
+        {
+           
+            List<DispatchInforResponse> list = new List<DispatchInforResponse>();
+            if (dbCon.IsConnect())
+            {
+                try
+                {
+                    string handles = "''";
+                    string filenames ="''";
+                    if (box.Count > 0) {
+                         handles = string.Join(",", box.Select(x => "'" + x.handle + "'").ToArray());
+                         filenames = string.Join(",", box.Select(x => "'" + x.filename + "'").ToArray());
 
+                    }
+                    DataTable dispatchInfo = new DataTable();
+                    string query = string.Format(QueryGlobals.GET_DispatchInfor_list,filenames,handles );
+                    MySqlDataAdapter myDataAdapter = new MySqlDataAdapter(query, dbCon.Connection);
+                    myDataAdapter.Fill(dispatchInfo);
+                    foreach (DataRow row in dispatchInfo.Rows)
+                    {
+                        DispatchInforResponse dispatch = new DispatchInforResponse();
+                        dispatch.description = row.Field<string>("description");
+                        dispatch.insulationSpec = row.Field<string>("insulationSpec");
+                        dispatch.widthDim = row.Field<string>("widthDim");
+                        dispatch.depthDim = row.Field<string>("depthDim");
+                        dispatch.lengthangle = row.Field<string>("lengthangle");
+                        dispatch.pathValue = row.Field<string>("pathValue");
+                        dispatch.jobno = row.Field<string>("jobno");
+                        dispatch.handle = row.Field<string>("handle");
+                        dispatch.filename = row.Field<string>("filename");
+                        dispatch.itemno = row.Field<string>("itemno");
+                        dispatch.operatorID = row.Field<string>("operatorID");
+                        dispatch.metalarea = row.Field<string>("metalarea");
+                        dispatch.insulationarea = row.Field<string>("insulationarea");
+                        dispatch.jobtime = row.Field<string>("jobtime");
+                        dispatch.duration = row.Field<string>("duration");
+                        dispatch.jobday = row.Field<string>("jobday");
+                        list.Add(dispatch);
+
+                    }
+
+                }
+                catch (Exception e)
+                {
+                    var st = new StackTrace(e, true);
+                    // Get the top stack frame
+                    var frame = st.GetFrame(0);
+                    // Get the line number from the stack frame
+                    var line = frame.GetFileLineNumber();
+                    Console.WriteLine(line);
+
+                }
+                finally
+                {
+                    dbCon.Close();
+                }
+            }
+            return list;
+            ;
+        }
+
+        public List<DispatchInforResponse> getDispatchInforByListJobno(List<string> jobno)
+        {
+            List<DispatchInforResponse> list = new List<DispatchInforResponse>();
+            if (dbCon.IsConnect())
+            {
+                try
+                {
+                    DataTable dispatchInfo = new DataTable();
+                    string jobno_list = string.Join(",", jobno.Select(x => "'" + x + "'").ToArray());
+                    string query = string.Format(QueryGlobals.GET_AllItemInJobno, jobno_list);
+                    MySqlDataAdapter myDataAdapter = new MySqlDataAdapter(query, dbCon.Connection);
+                    myDataAdapter.Fill(dispatchInfo);
+                    foreach (DataRow row in dispatchInfo.Rows)
+                    {
+                        DispatchInforResponse dispatch = new DispatchInforResponse();
+                        dispatch.description = row.Field<string>("description");
+                        dispatch.insulationSpec = row.Field<string>("insulationSpec");
+                        dispatch.widthDim = row.Field<string>("widthDim");
+                        dispatch.depthDim = row.Field<string>("depthDim");
+                        dispatch.lengthangle = row.Field<string>("lengthangle");
+                        dispatch.pathValue = row.Field<string>("pathValue");
+                        dispatch.jobno = row.Field<string>("jobno");
+                        dispatch.handle = row.Field<string>("handle");
+                        dispatch.filename = row.Field<string>("filename");
+                        dispatch.itemno = row.Field<string>("itemno");
+                        dispatch.operatorID = row.Field<string>("operatorID");
+                        dispatch.metalarea = row.Field<string>("metalarea");
+                        dispatch.insulationarea = row.Field<string>("insulationarea");
+                        dispatch.jobtime = row.Field<string>("jobtime");
+                        dispatch.duration = row.Field<string>("duration");
+                        dispatch.jobday = row.Field<string>("jobday");
+                        list.Add(dispatch);
+
+                    }
+
+                }
+                catch (Exception e)
+                {
+                    throw e;
+
+                }
+                finally
+                {
+                    dbCon.Close();
+                }
+            }
+            return list;
+            ;
+        }
     }
 }

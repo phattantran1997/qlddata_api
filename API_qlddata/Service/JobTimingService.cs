@@ -23,7 +23,6 @@ namespace API_premierductsqld.Service
 
             try
             {
-
                 string url = urlFromBase + "/jobtiming/getAllDataWithStation?currentDate=" + date;
                 //Sends request to retrieve data from the web service for the specified Uri
                 var response = client.GetAsync(url).Result;
@@ -80,7 +79,7 @@ namespace API_premierductsqld.Service
             try
             {
 
-                string url = urlFromBase + "jobtiming/getAllDataByJobNo?jobNo=" + jobNo;
+                string url = urlFromBase + "/jobtiming/getAllDataByJobNo?jobNo=" + jobNo;
                 //Sends request to retrieve data from the web service for the specified Uri
                 var response = client.GetAsync(url).Result;
 
